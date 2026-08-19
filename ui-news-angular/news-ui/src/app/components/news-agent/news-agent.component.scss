@@ -1,0 +1,28 @@
+.assistant-panel { position: fixed; right: 100px; bottom: 0; width: 340px; max-height: 500px; border-radius: 18px; background: #fff9e9; box-shadow: 0 18px 60px rgba(26,20,10,.24); overflow: hidden; z-index: 5; display: flex; flex-direction: column; transform: translateY(100%); transition: transform 0.3s ease; }
+.assistant-panel.open { transform: translateY(0); }
+
+@media (max-width: 1050px) {
+  .assistant-panel { right: 10px; width: 300px; }
+  .assistant-fab { display: block; }
+}
+
+.assistant-head { background: linear-gradient(135deg, #ff9535, #ee642e); color: white; display: flex; gap: 12px; align-items: center; padding: 18px; }
+.assistant-head div:last-of-type { display: grid; flex: 1; }
+.assistant-head span { font-size: 11px; opacity: .8; }
+.assistant-fab { position: fixed; right: 22px; bottom: 22px; width: 54px; height: 54px; border-radius: 50%; border: 0; background: #ef6d32; color: white; font-size: 22px; box-shadow: 0 10px 30px rgba(239,109,50,.35); cursor: pointer; z-index: 4; }
+.assistant-body { flex: 1; padding: 18px; display: flex; flex-direction: column; overflow: hidden; }
+
+.messages-container { flex: 1; overflow-y: auto; margin-bottom: 12px; max-height: 320px; }
+.messages-container small { color: #888; }
+
+.message { padding: 10px 14px; border-radius: 12px; font-size: 13px; margin-bottom: 8px; word-wrap: break-word; }
+.message.ai { background: white; box-shadow: 0 4px 12px rgba(60,40,0,.06); }
+.message.human { background: #ef6d32; color: white; margin-left: 20%; text-align: right; }
+.message.loading-msg { opacity: 0.7; font-style: italic; }
+
+.agent-input { border-top: 1px solid #ddd1b5; padding-top: 10px; display: flex; gap: 8px; align-items: center; }
+.agent-input input { flex: 1; border: none; background: transparent; outline: none; font-size: 13px; padding: 6px 0; }
+.agent-input input::placeholder { color: #aaa; }
+.send-btn { background: none; border: none; color: #ef7434; font-size: 20px; cursor: pointer; padding: 4px; }
+.send-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+.clear-btn { background: none; border: none; color: rgba(255,255,255,0.8); font-size: 16px; cursor: pointer; margin-left: auto; }

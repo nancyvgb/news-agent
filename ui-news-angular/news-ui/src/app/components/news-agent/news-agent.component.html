@@ -1,0 +1,36 @@
+<aside class="assistant-panel" [class.open]="isOpen()" aria-label="AI assistant">
+  <div class="assistant-head">
+    <div class="bot-icon">✦</div>
+    <div>
+      <strong>AI Assistant</strong>
+      <span>News Agent</span>
+    </div>
+    <button class="clear-btn" (click)="clear()" title="Clear chat">✕</button>
+  </div>
+  <div class="assistant-body">
+    <div class="messages-container">
+      @if (messages().length === 0) {
+        <small>Assistant</small>
+        <p class="message ai">Hey there! Ask me anything about the news.</p>
+      }
+      @for (msg of messages(); track $index) {
+        <p class="message" [class.human]="msg.type === 'human'" [class.ai]="msg.type === 'ai'">
+          {{ msg.content }}
+        </p>
+      }
+      @if (loading()) {
+        <p class="message ai loading-msg">Thinking...</p>
+      }
+    </div>
+    <div class="agent-input">
+      <input
+        [(ngModel)]="userInput"
+        (keydown)="onKeydown($event)"
+        placeholder="Ask about the news..."
+        [disabled]="loading()"
+      />
+      <button (click)="send()" [disabled]="loading()" class="send-btn">➜</button>
+    </div>
+  </div>
+</aside>
+<button class="assistant-fab" type="button" (click)="toggle()" aria-label="Open assistant">✦</button>
