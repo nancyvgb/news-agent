@@ -17,6 +17,7 @@ from psycopg_pool import ConnectionPool
 
 load_dotenv()
 
+
 DB_URI = os.getenv("SUPABASE_URL")
 
 CURRENTS_API_KEY = os.getenv("CURRENTS_API_KEY")
@@ -24,7 +25,16 @@ if not CURRENTS_API_KEY:
     raise RuntimeError(
         "CURRENTS_API_KEY is not set — add it to .env"
     )
-print("CURRENTS_API_KEY available:", bool(CURRENTS_API_KEY))
+print(
+    "CURRENTS_API_KEY available:",
+    bool(CURRENTS_API_KEY),
+    flush=True
+)
+
+if not CURRENTS_API_KEY:
+    raise RuntimeError(
+        "CURRENTS_API_KEY environment variable is not set"
+    )
 
 GOOGLE_API_KEY = os.getenv("GOOGLE_API_KEY")
 if not GOOGLE_API_KEY:
