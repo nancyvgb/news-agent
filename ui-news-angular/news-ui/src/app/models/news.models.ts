@@ -1,4 +1,5 @@
 // src/app/models/news.models.ts
+
 export interface NewsSource {
   id: string | null;
   name: string;
@@ -24,17 +25,49 @@ export interface NewsResponse {
 }
 
 export type NewsCategory =
-  | 'general'
   | 'business'
-  | 'technology'
-  | 'science'
+  | 'entertainment'
   | 'health'
+  | 'science'
   | 'sports'
-  | 'entertainment';
+  | 'technology'
+  | 'world'
+  | 'politics'
+  | 'top';
 
-export interface CategoryOption { label: string; value: NewsCategory; }
+export interface CategoryOption {
+  label: string;
+  value: NewsCategory;
+}
 
-// Chat models (matches FastAPI backend)
+
+// ======================================================
+// CURRENTS API
+// ======================================================
+
+export interface CurrentsArticle {
+  id?: string;
+  title?: string;
+  description?: string;
+  url?: string;
+  author?: string;
+  image?: string;
+  language?: string;
+  category?: string[];
+  published?: string;
+}
+
+export interface CurrentsResponse {
+  status: string;
+  news?: CurrentsArticle[];
+  page?: number;
+}
+
+
+// ======================================================
+// CHAT
+// ======================================================
+
 export interface ChatMessage {
   type: 'human' | 'ai';
   content: string;

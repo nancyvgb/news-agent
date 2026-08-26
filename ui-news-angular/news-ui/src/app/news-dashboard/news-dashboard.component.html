@@ -1,27 +1,57 @@
 <div class="app-shell">
+
   <header class="masthead">
+
     <div class="date-block">
       <strong>{{ today | date:'EEEE' }}</strong>
       <span>{{ today | date:'MMMM d, y' }}</span>
       <small>Digital newspaper</small>
     </div>
 
-    <a class="brand" href="#" aria-label="The News home">
+    <a
+      class="brand"
+      href="#"
+      aria-label="The News home">
       <span>THE</span>
       <strong>NEWS</strong>
     </a>
 
-    <form class="search" (ngSubmit)="search()">
-      <input name="search" [(ngModel)]="searchTerm" placeholder="Search headlines" aria-label="Search headlines">
+    <form
+      class="search"
+      (ngSubmit)="search()">
+
+      <input
+        name="search"
+        [(ngModel)]="searchTerm"
+        placeholder="Search headlines"
+        aria-label="Search headlines">
+
       @if (searchTerm) {
-        <button type="button" class="clear" (click)="clearSearch()" aria-label="Clear search">×</button>
+        <button
+          type="button"
+          class="clear"
+          (click)="clearSearch()"
+          aria-label="Clear search">
+          ×
+        </button>
       }
-      <button type="submit" aria-label="Submit search">⌕</button>
+
+      <button
+        type="submit"
+        aria-label="Submit search">
+        ⌕
+      </button>
+
     </form>
+
   </header>
 
-  <nav class="category-nav" aria-label="News categories">
-    @for (category of categories; track category.label) {
+
+  <nav
+    class="category-nav"
+    aria-label="News categories">
+
+    @for (category of categories; track category.value) {
       <button
         type="button"
         [class.active]="activeCategory() === category.value"
@@ -29,108 +59,318 @@
         {{ category.label }}
       </button>
     }
+
   </nav>
 
+
   <main>
+
     @if (error()) {
       <section class="state-card error-card">
+
         <span>!</span>
-        <div><strong>News could not be loaded</strong><p>{{ error() }}</p></div>
-        <button type="button" (click)="search()">Try again</button>
+
+        <div>
+          <strong>News could not be loaded</strong>
+          <p>{{ error() }}</p>
+        </div>
+
+        <button
+          type="button"
+          (click)="search()">
+          Try again
+        </button>
+
       </section>
     }
+
 
     @if (loading() && !articles().length) {
-      <section class="news-grid skeleton-grid" aria-label="Loading news">
+
+      <section
+        class="news-grid skeleton-grid"
+        aria-label="Loading news">
+
         <div class="sidebar skeleton"></div>
         <div class="hero skeleton"></div>
+
       </section>
+
     } @else if (featured(); as article) {
+
       <section class="news-grid">
+
         <aside class="sidebar">
-          <div class="section-heading"><span>Latest news</span><i></i></div>
-          <div class="latest-list">
-            @for (item of latest(); track item.url) {
-              <button type="button" (click)="openArticle(item)">
-                <time>{{ item.publishedAt | date:'HH:mm' }}</time>
-                <span>{{ item.title }}</span>
-              </button>
-            }
+
+          <div class="section-heading">
+            <span>Latest news</span>
+            <i></i>
           </div>
+
+
+          <div class="latest-list">
+
+            @for (item of latest(); track item.url) {
+
+              <button
+                type="button"
+                (click)="openArticle(item)">
+
+                <time>
+                  {{ item.publishedAt | date:'HH:mm' }}
+                </time>
+
+                <span>
+                  {{ item.title }}
+                </span>
+
+              </button>
+
+            }
+
+          </div>
+
 
           <div class="side-story">
-            <div class="section-heading"><span>Trends</span><i></i></div>
+
+            <div class="section-heading">
+              <span>Trends</span>
+              <i></i>
+            </div>
+
             @if (articles()[5]; as trend) {
-              <button type="button" (click)="openArticle(trend)">
+
+              <button
+                type="button"
+                (click)="openArticle(trend)">
+
                 <div class="thumb">
-                  @if (trend.urlToImage) { <img [src]="trend.urlToImage" alt="" (error)="imageFallback($event)"> }
+
+                  @if (trend.urlToImage) {
+                    <img
+                      [src]="trend.urlToImage"
+                      [alt]="trend.title"
+                      (error)="imageFallback($event)">
+                  }
+
                 </div>
-                <span>{{ trend.description || trend.title }}</span>
+
+                <span>
+                  {{ trend.description || trend.title }}
+                </span>
+
               </button>
+
             }
+
           </div>
+
 
           <div class="side-story text-only">
-            <div class="section-heading"><span>Science</span><i></i></div>
-            @if (articles()[6]; as science) {
-              <button type="button" (click)="openArticle(science)">
-                <span>{{ science.description || science.title }}</span>
+
+            <div class="section-heading">
+              <span>Featured</span>
+              <i></i>
+            </div>
+
+            @if (articles()[6]; as sideArticle) {
+
+              <button
+                type="button"
+                (click)="openArticle(sideArticle)">
+
+                <span>
+                  {{
+                    sideArticle.description ||
+                    sideArticle.title
+                  }}
+                </span>
+
                 <b>READ ››</b>
+
               </button>
+
             }
+
           </div>
+
         </aside>
 
+
         <article class="hero-story">
-          <button class="hero-image" type="button" (click)="openArticle(article)">
+
+          <button
+            class="hero-image"
+            type="button"
+            (click)="openArticle(article)">
+
             @if (article.urlToImage) {
-              <img [src]="article.urlToImage" [alt]="article.title" (error)="imageFallback($event)">
+
+              <img
+                [src]="article.urlToImage"
+                [alt]="article.title"
+                (error)="imageFallback($event)">
+
             }
-            <span class="source-pill">{{ article.source.name }}</span>
+
+            <span class="source-pill">
+              {{ article.source.name }}
+            </span>
+
           </button>
+
+
           <div class="hero-copy">
-            <p class="eyebrow">Top story · {{ article.publishedAt | date:'mediumTime' }}</p>
-            <h1>{{ article.title }}</h1>
-            <p>{{ article.description || 'Open the full story for the latest details.' }}</p>
-            <button type="button" (click)="openArticle(article)">Read full story <span>↗</span></button>
+
+            <p class="eyebrow">
+              Top story ·
+              {{ article.publishedAt | date:'mediumTime' }}
+            </p>
+
+            <h1>
+              {{ article.title }}
+            </h1>
+
+            <p>
+              {{
+                article.description ||
+                'Open the full story for the latest details.'
+              }}
+            </p>
+
+            <button
+              type="button"
+              (click)="openArticle(article)">
+
+              Read full story
+              <span>↗</span>
+
+            </button>
+
           </div>
+
         </article>
+
       </section>
+
 
       <section class="feed-section">
+
         <div class="section-title-row">
-          <div><span>More stories</span><h2>Today’s briefing</h2></div>
-          <p>{{ totalResults() | number }} results</p>
+
+          <div>
+            <span>More stories</span>
+            <h2>Today’s briefing</h2>
+          </div>
+
+          <p>
+            {{ articles().length }} stories
+          </p>
+
         </div>
+
 
         <div class="cards-grid">
+
           @for (item of feed(); track item.url) {
-            <article class="news-card" (click)="openArticle(item)" tabindex="0" (keydown.enter)="openArticle(item)">
+
+            <article
+              class="news-card"
+              tabindex="0"
+              (click)="openArticle(item)"
+              (keydown.enter)="openArticle(item)">
+
               <div class="card-image">
-                @if (item.urlToImage) { <img [src]="item.urlToImage" [alt]="item.title" (error)="imageFallback($event)"> }
+
+                @if (item.urlToImage) {
+
+                  <img
+                    [src]="item.urlToImage"
+                    [alt]="item.title"
+                    (error)="imageFallback($event)">
+
+                }
+
               </div>
+
+
               <div class="card-content">
-                <div class="card-meta"><span>{{ item.source.name }}</span><time>{{ item.publishedAt | date:'MMM d' }}</time></div>
-                <h3>{{ item.title }}</h3>
-                <p>{{ item.description || 'Read the complete article at the original source.' }}</p>
-                <span class="read-link">Read article ↗</span>
+
+                <div class="card-meta">
+
+                  <span>
+                    {{ item.source.name }}
+                  </span>
+
+                  <time>
+                    {{ item.publishedAt | date:'MMM d' }}
+                  </time>
+
+                </div>
+
+                <h3>
+                  {{ item.title }}
+                </h3>
+
+                <p>
+                  {{
+                    item.description ||
+                    'Read the complete article at the original source.'
+                  }}
+                </p>
+
+                <span class="read-link">
+                  Read article ↗
+                </span>
+
               </div>
+
             </article>
+
           }
+
         </div>
 
+
         @if (canLoadMore()) {
-          <button class="load-more" type="button" [disabled]="loading()" (click)="loadMore()">
-            {{ loading() ? 'Loading…' : 'Load more stories' }}
+
+          <button
+            class="load-more"
+            type="button"
+            [disabled]="loading()"
+            (click)="loadMore()">
+
+            {{
+              loading()
+                ? 'Loading…'
+                : 'Load more stories'
+            }}
+
           </button>
+
         }
+
       </section>
+
     } @else if (!loading() && !error()) {
-      <section class="state-card"><strong>No stories found</strong><p>Try another search or category.</p></section>
+
+      <section class="state-card">
+
+        <strong>No stories found</strong>
+
+        <p>
+          Try another search or category.
+        </p>
+
+      </section>
+
     }
+
   </main>
 
-    <app-news-agent class="news-agent-position"></app-news-agent>
-  
-  
+
+  <app-news-agent
+    class="news-agent-position">
+  </app-news-agent>
+
 </div>

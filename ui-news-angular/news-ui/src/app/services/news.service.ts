@@ -1,85 +1,297 @@
-import { HttpClient, HttpParams } from '@angular/common/http';
-import { Injectable, inject } from '@angular/core';
-import { Observable } from 'rxjs';
+// src/app/services/news.service.ts
+
+import {
+  HttpClient,
+  HttpHeaders,
+  HttpParams
+} from '@angular/common/http';
+
+import {
+  Injectable,
+  inject
+} from '@angular/core';
+
+import {
+  Observable,
+  map
+} from 'rxjs';
 
 import {
   ChatRequest,
   ChatResponse,
   ClearResponse,
+  CurrentsArticle,
+  CurrentsResponse,
+  NewsArticle,
   NewsCategory,
   NewsResponse
 } from '../models/news.models';
 
-import { environment } from '../../enviroment/enviroment';
+import {
+  environment
+} from '../../enviroment/enviroment';
 
-@Injectable({ providedIn: 'root' })
+
+@Injectable({
+  providedIn: 'root'
+})
 export class NewsService {
-  private readonly http = inject(HttpClient);
 
-  private readonly endpoint = 'https://newsapi.org/v2/top-headlines';
-  private readonly chatApiUrl = environment.chatApiUrl;
+  private readonly http =
+    inject(HttpClient);
 
-  /**
-   * Get the country from the browser's locale.
-   *
-   * Example:
-   * en-US -> us
-   * es-CO -> co
-   * es-MX -> mx
-   *
-   * Falls back to Colombia if the browser doesn't
-   * provide a region.
-   */
+  private readonly latestEndpoint =
+    'https://api.currentsapi.services/v1/latest-news';
+
+  private readonly searchEndpoint =
+    'https://api.currentsapi.services/v1/search';
+
+  private readonly apiKey = environment.newsApiKey;
+
+  private readonly chatApiUrl =
+    environment.chatApiUrl;
+
+
   private getBrowserCountry(): string {
-    const locale = navigator.language;
+
+    const locale =
+      navigator.language;
 
     try {
-      const region = new Intl.Locale(locale).region;
+
+      const region =
+        new Intl.Locale(locale).region;
 
       if (region) {
-        return region.toLowerCase();
+        return region.toUpperCase();
       }
+
     } catch (error) {
-      console.warn('Could not determine browser country:', error);
+
+      console.warn(
+        'Could not determine browser country:',
+        error
+      );
+
     }
 
-    // Fallback
-    return 'us';
+    return 'US';
   }
 
-  getHeadlines(options: {
-    category?: NewsCategory;
-    query?: string;
-    page?: number;
-    pageSize?: number;
-    country?: string;
-  } = {}): Observable<NewsResponse> {
 
-    const country = options.country ?? this.getBrowserCountry();
+  getHeadlines(
+    options: {
+      category?: NewsCategory;
+      query?: string;
+      page?: number;
+      pageSize?: number;
+      country?: string;
+    } = {}
+  ): Observable<NewsResponse> {
 
-    let params = new HttpParams()
-      .set('country', country)
-      .set('page', String(options.page ?? 1))
-      .set('pageSize', String(options.pageSize ?? 12));
+    const query =
+      options.query?.trim();
 
-    if (options.category) {
-      params = params.set('category', options.category);
+    const country =
+      options.country ??
+      this.getBrowserCountry();
+
+    const endpoint =
+      query
+        ? this.searchEndpoint
+        : this.latestEndpoint;
+
+
+    let params =
+      new HttpParams()
+        .set(
+          'language',
+          'en'
+        )
+        .set(
+          'country',
+          country
+        )
+        .set(
+          'page_size',
+          String(
+            options.pageSize ?? 10
+          )
+        );
+
+
+    if (options.page) {
+
+      params = params.set(
+        'page_number',
+        String(options.page)
+      );
+
     }
 
-    if (options.query?.trim()) {
-      params = params.set('q', options.query.trim());
+
+    if (
+      options.category &&
+      options.category !== 'top'
+    ) {
+
+      params = params.set(
+        'category',
+        options.category
+      );
+
     }
 
-    params = params.set(
-      'apiKey',
-      'c055f9f4ccd64e53bb193e94fe9bfa2c'
-    );
 
-    return this.http.get<NewsResponse>(
-      this.endpoint,
-      { params }
-    );
+    if (query) {
+
+      params = params.set(
+        'keywords',
+        query
+      );
+
+    }
+
+
+    const headers =
+      new HttpHeaders({
+        Authorization:
+          `Bearer ${this.apiKey}`
+      });
+
+
+    return this.http
+      .get<CurrentsResponse>(
+        endpoint,
+        {
+          params,
+          headers
+        }
+      )
+      .pipe(
+        map(response =>
+          this.mapCurrentsResponse(
+            response
+          )
+        )
+      );
+
   }
+
+
+  private mapCurrentsResponse(
+    response: CurrentsResponse
+  ): NewsResponse {
+
+    const articles =
+      (response.news ?? [])
+        .map(article =>
+          this.mapCurrentsArticle(
+            article
+          )
+        );
+
+
+    return {
+      status: 'ok',
+      totalResults:
+        articles.length,
+      articles
+    };
+
+  }
+
+
+  private mapCurrentsArticle(
+    article: CurrentsArticle
+  ): NewsArticle {
+
+    return {
+
+      source: {
+        id:
+          article.id ??
+          null,
+
+        name:
+          this.getSourceName(
+            article.url
+          )
+      },
+
+
+      author:
+        article.author ??
+        null,
+
+
+      title:
+        article.title ??
+        'Untitled article',
+
+
+      description:
+        article.description ??
+        null,
+
+
+      url:
+        article.url ??
+        '',
+
+
+      urlToImage:
+        article.image ??
+        null,
+
+
+      publishedAt:
+        article.published ??
+        new Date().toISOString(),
+
+
+      content:
+        article.description ??
+        null
+
+    };
+
+  }
+
+
+  private getSourceName(
+    url?: string
+  ): string {
+
+    if (!url) {
+      return 'News source';
+    }
+
+
+    try {
+
+      const hostname =
+        new URL(url).hostname;
+
+
+      return hostname
+        .replace(
+          /^www\./,
+          ''
+        );
+
+    } catch {
+
+      return 'News source';
+
+    }
+
+  }
+
+
+  // ======================================================
+  // CHAT - UNCHANGED
+  // ======================================================
 
   sendMessage(
     message: string,
@@ -90,25 +302,38 @@ export class NewsService {
       message
     };
 
+
     if (threadId) {
-      body.thread_id = threadId;
+      body.thread_id =
+        threadId;
     }
+
 
     return this.http.post<ChatResponse>(
       `${this.chatApiUrl}/chat`,
       body
     );
+
   }
 
-  clearChat(threadId?: string): Observable<ClearResponse> {
 
-    const body = threadId
-      ? { thread_id: threadId }
-      : {};
+  clearChat(
+    threadId?: string
+  ): Observable<ClearResponse> {
+
+    const body =
+      threadId
+        ? {
+            thread_id: threadId
+          }
+        : {};
+
 
     return this.http.post<ClearResponse>(
       `${this.chatApiUrl}/clear`,
       body
     );
+
   }
+
 }

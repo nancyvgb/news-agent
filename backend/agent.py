@@ -2,7 +2,6 @@ import os
 import requests
 
 from dotenv import load_dotenv
-from newsapi import NewsApiClient
 
 from langchain_core.tools import tool
 from langchain_google_genai import ChatGoogleGenerativeAI
@@ -20,10 +19,10 @@ load_dotenv()
 
 DB_URI = os.getenv("SUPABASE_URL")
 
-NEWS_API_KEY = os.getenv("NEWS_API_KEY")
-if not NEWS_API_KEY:
+CURRENTS_API_KEY = os.getenv("CURRENTS_API_KEY")
+if not CURRENTS_API_KEY:
     raise RuntimeError(
-        "NEWS_API_KEY is not set — add it to .env"
+        "CURRENTS_API_KEY is not set — add it to .env"
     )
 
 GOOGLE_API_KEY = os.getenv("GOOGLE_API_KEY")
@@ -39,12 +38,49 @@ if not DB_URI:
 
 
 # ---------------------------------------------------------
-# APIs
+# Currents API
 # ---------------------------------------------------------
 
-newsapi = NewsApiClient(
-    api_key=NEWS_API_KEY
+CURRENTS_LATEST_URL = (
+    "https://api.currentsapi.services/v1/latest-news"
 )
+
+CURRENTS_SEARCH_URL = (
+    "https://api.currentsapi.services/v1/search"
+)
+
+CURRENTS_HEADERS = {
+    "Authorization": f"Bearer {CURRENTS_API_KEY}"
+}
+
+
+# ---------------------------------------------------------
+# Helpers
+# ---------------------------------------------------------
+
+def normalize_country(country: str) -> str:
+    """
+    Normalize a country code for Currents.
+
+    co -> CO
+    us -> US
+    """
+    return country.strip().upper()
+
+
+def normalize_category(category: str) -> str:
+    """
+    Normalize category values used by the agent.
+    """
+
+    category = category.strip().lower()
+
+    aliases = {
+        "news": "general",
+        "top": "general",
+    }
+
+    return aliases.get(category, category)
 
 
 # ---------------------------------------------------------
@@ -52,41 +88,118 @@ newsapi = NewsApiClient(
 # ---------------------------------------------------------
 
 @tool
-def get_news(category: str, country: str):
+def get_news(
+    category: str,
+    country: str,
+):
     """
-    Get top news headlines for a category and country.
+    Get recent news for a category and country.
 
-    category examples:
+    Examples of categories:
     technology, business, politics, sports,
-    science, entertainment, health
+    science, entertainment, health.
 
     country must be a 2-letter country code,
-    for example "co" for Colombia.
+    for example "co" for Colombia or "us"
+    for the United States.
     """
 
     try:
+        normalized_country = normalize_country(
+            country
+        )
+
+        normalized_category = normalize_category(
+            category
+        )
+
         print(
-            f"[TOOL] get_news(category={category}, country={country})"
+            "[TOOL] get_news("
+            f"category={normalized_category}, "
+            f"country={normalized_country}"
+            ")"
         )
 
-        articles = newsapi.get_top_headlines(
-            category=category,
-            country=country,
+        params = {
+            "language": "en",
+            "country": normalized_country,
+            "page_size": 10,
+        }
+
+        if normalized_category != "general":
+            params["category"] = normalized_category
+
+        response = requests.get(
+            CURRENTS_LATEST_URL,
+            params=params,
+            headers=CURRENTS_HEADERS,
+            timeout=20,
         )
 
-        # Return a simple JSON-serializable structure.
+        response.raise_for_status()
+
+        data = response.json()
+
+        if data.get("status") != "ok":
+            raise RuntimeError(
+                data.get("message")
+                or f"Currents API returned: {data}"
+            )
+
+        articles = data.get(
+            "news",
+            []
+        )
+
         return {
             "status": "success",
+            "category": normalized_category,
+            "country": normalized_country,
+            "articles": articles,
+        }
+
+    except requests.HTTPError as e:
+
+        status_code = (
+            e.response.status_code
+            if e.response is not None
+            else None
+        )
+
+        response_body = None
+
+        if e.response is not None:
+            try:
+                response_body = (
+                    e.response.json()
+                )
+            except Exception:
+                response_body = (
+                    e.response.text
+                )
+
+        print(
+            "[TOOL ERROR] get_news:",
+            status_code,
+            response_body,
+        )
+
+        return {
+            "status": "error",
+            "message": (
+                f"Currents API request failed "
+                f"with HTTP {status_code}"
+            ),
+            "details": response_body,
             "category": category,
             "country": country,
-            "articles": articles.get("articles", []),
         }
 
     except Exception as e:
-        # IMPORTANT:
-        # Don't allow the tool to crash the graph.
-        # Return the error as the tool result instead.
-        print(f"[TOOL ERROR] get_news: {e}")
+
+        print(
+            f"[TOOL ERROR] get_news: {e}"
+        )
 
         return {
             "status": "error",
@@ -97,14 +210,139 @@ def get_news(category: str, country: str):
 
 
 @tool
+def search_news(
+    query: str,
+    country: str,
+):
+    """
+    Search current news by keyword, topic, company,
+    organization, person, or event.
+
+    Examples:
+    OpenAI
+    Tesla
+    artificial intelligence
+    Colombia elections
+
+    country must be a 2-letter country code.
+    """
+
+    try:
+
+        normalized_country = normalize_country(
+            country
+        )
+
+        query = query.strip()
+
+        print(
+            "[TOOL] search_news("
+            f"query={query}, "
+            f"country={normalized_country}"
+            ")"
+        )
+
+        params = {
+            "keywords": query,
+            "language": "en",
+            "country": normalized_country,
+            "page_size": 10,
+        }
+
+        response = requests.get(
+            CURRENTS_SEARCH_URL,
+            params=params,
+            headers=CURRENTS_HEADERS,
+            timeout=20,
+        )
+
+        response.raise_for_status()
+
+        data = response.json()
+
+        if data.get("status") != "ok":
+            raise RuntimeError(
+                data.get("message")
+                or f"Currents API returned: {data}"
+            )
+
+        articles = data.get(
+            "news",
+            []
+        )
+
+        return {
+            "status": "success",
+            "query": query,
+            "country": normalized_country,
+            "articles": articles,
+        }
+
+    except requests.HTTPError as e:
+
+        status_code = (
+            e.response.status_code
+            if e.response is not None
+            else None
+        )
+
+        response_body = None
+
+        if e.response is not None:
+            try:
+                response_body = (
+                    e.response.json()
+                )
+            except Exception:
+                response_body = (
+                    e.response.text
+                )
+
+        print(
+            "[TOOL ERROR] search_news:",
+            status_code,
+            response_body,
+        )
+
+        return {
+            "status": "error",
+            "message": (
+                f"Currents API request failed "
+                f"with HTTP {status_code}"
+            ),
+            "details": response_body,
+            "query": query,
+            "country": country,
+        }
+
+    except Exception as e:
+
+        print(
+            f"[TOOL ERROR] search_news: {e}"
+        )
+
+        return {
+            "status": "error",
+            "message": str(e),
+            "query": query,
+            "country": country,
+        }
+
+
+@tool
 def get_location():
     """
-    Get the user's current country based on their IP address.
+    Get the user's current country based on
+    their IP address.
+
     Returns a two-letter country code.
     """
 
     try:
-        print("[TOOL] get_location()")
+
+        print(
+            "[TOOL] get_location()"
+        )
 
         response = requests.get(
             "https://ipinfo.io/json",
@@ -118,17 +356,23 @@ def get_location():
 
         data = response.json()
 
-        country = data.get("country")
+        country = data.get(
+            "country"
+        )
 
         if not country:
             raise RuntimeError(
-                "Could not determine country from IP information."
+                "Could not determine country "
+                "from IP information."
             )
 
         return country.lower()
 
     except Exception as e:
-        print(f"[TOOL ERROR] get_location: {e}")
+
+        print(
+            f"[TOOL ERROR] get_location: {e}"
+        )
 
         return {
             "status": "error",
@@ -156,40 +400,86 @@ llm = ChatGoogleGenerativeAI(
 system_prompt = """
 You are a helpful news assistant.
 
+You have access to current news through
+the Currents News API.
+
 YOUR WORKFLOW:
 
-1. If the user asks for news WITHOUT specifying a category:
-   - Offer relevant categories such as:
-     technology, business, politics, sports,
-     science, entertainment, and health.
-   - Ask which category interests them.
-   - You may provide general news if appropriate.
+1. If the user asks for general news WITHOUT
+   specifying a category or topic:
 
-2. If the user specifies a category, topic, or company:
-   - First call get_location if the user did not specify a country.
-   - Then call get_news with:
-       category=<appropriate category>
-       country=<two-letter country code>
+   - If the user specified a country, use it.
+   - Otherwise call get_location.
+   - Use get_news with an appropriate category.
+   - If the user simply asks for "news",
+     "latest news", or "top news", use:
+       category="top"
 
-3. If the user specifies a country or region:
-   - Use the appropriate two-letter country code.
-   - Call get_news.
+2. If the user specifies a news category:
 
-4. When using get_news:
-   - Use valid NewsAPI categories:
-     technology
-     business
-     politics
-     sports
-     science
-     entertainment
-     health
+   Examples:
+   technology
+   business
+   politics
+   sports
+   science
+   entertainment
+   health
+
+   - If the user did not specify a country,
+     call get_location first.
+   - Then call get_news.
+
+3. If the user asks about a specific:
+   - company
+   - person
+   - organization
+   - event
+   - product
+   - subject
+   - keyword
+   - topic
+
+   use search_news instead of get_news.
+
+   Examples:
+   "news about OpenAI"
+   "what happened with Tesla?"
+   "AI news"
+   "latest news about Apple"
+
+4. If the user provides a country or region:
+
+   - Convert it to a two-letter country code.
+   - Examples:
+       Colombia -> co
+       United States -> us
+       Mexico -> mx
+       Spain -> es
 
 5. Colombia's country code is "co".
 
-6. If a tool returns an error:
-   - Do not call the same tool repeatedly.
-   - Explain the problem to the user clearly.
+6. When presenting articles:
+
+   - Prefer recent and relevant articles.
+   - Mention the article title.
+   - Briefly summarize the description.
+   - Mention the publication/source when available.
+   - Include the article URL when useful.
+   - Do not invent details that are not present
+     in the tool response.
+
+7. If the tool returns no articles:
+
+   - Explain that no matching recent articles
+     were found.
+   - Suggest trying a broader topic or category.
+
+8. If a tool returns an error:
+
+   - Do not repeatedly call the same tool
+     with identical arguments.
+   - Explain the problem clearly.
 """
 
 
@@ -211,7 +501,9 @@ pool = ConnectionPool(
 # LangGraph checkpointer
 # ---------------------------------------------------------
 
-checkpointer = PostgresSaver(pool)
+checkpointer = PostgresSaver(
+    pool
+)
 
 checkpointer.setup()
 
@@ -224,6 +516,7 @@ agent = create_react_agent(
     model=llm,
     tools=[
         get_news,
+        search_news,
         get_location,
     ],
     prompt=system_prompt,
@@ -241,7 +534,9 @@ if __name__ == "__main__":
 
     while True:
 
-        user_query = input("\nEnter your query: ")
+        user_query = input(
+            "\nEnter your query: "
+        )
 
         if user_query.lower() in [
             "bye",
@@ -268,27 +563,45 @@ if __name__ == "__main__":
                 },
             )
 
-            print("\n--- RESPONSE ---")
+            print(
+                "\n--- RESPONSE ---"
+            )
 
-            for message in response["messages"]:
+            for message in response[
+                "messages"
+            ]:
 
                 if message.type == "human":
+
                     print(
-                        f"\nUSER: {message.content}"
+                        f"\nUSER: "
+                        f"{message.content}"
                     )
 
                 elif message.type == "ai":
+
                     print(
-                        f"\nAI: {message.content}"
+                        f"\nAI: "
+                        f"{message.content}"
                     )
 
                 elif message.type == "tool":
+
                     print(
-                        f"\nTOOL: {message.content}"
+                        f"\nTOOL: "
+                        f"{message.content}"
                     )
 
         except Exception as e:
 
-            print("\n--- ERROR ---")
-            print(type(e).__name__)
-            print(str(e))
+            print(
+                "\n--- ERROR ---"
+            )
+
+            print(
+                type(e).__name__
+            )
+
+            print(
+                str(e)
+            )
