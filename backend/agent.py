@@ -24,6 +24,7 @@ if not CURRENTS_API_KEY:
     raise RuntimeError(
         "CURRENTS_API_KEY is not set — add it to .env"
     )
+print("CURRENTS_API_KEY available:", bool(CURRENTS_API_KEY))
 
 GOOGLE_API_KEY = os.getenv("GOOGLE_API_KEY")
 if not GOOGLE_API_KEY:
